@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
 import { getGameByType, GAME_TYPES } from '../domain/games'
 import { getNextAvailableSlot } from '../domain/booking-engine'
 import { bookingRepository } from '../services/bookingRepository'
+import GameCard from '../components/GameCard'
 
 function HomePage() {
   const reservations = bookingRepository.flattenReservations()
@@ -23,34 +23,24 @@ function HomePage() {
 
   return (
     <div className="page-shell">
-      <header className="hero-panel">
-        <p className="eyebrow">Next House Copenhagen</p>
-        <h1>Book your next game session</h1>
-        <p className="lead">
-          Reserve a table, station or court in minutes. Pay at the bar or reception when you arrive.
-        </p>
-      </header>
+      <section className="hero">
+        <div className="hero__copy">
+          <p className="hero__label">Next House Copenhagen</p>
+          <h1 className="hero__title">Book your next game session</h1>
+          <p className="hero__subtitle">Play. Enjoy. Pay at the bar.</p>
+        </div>
+      </section>
 
-      <section className="card-grid">
+      <section className="card-grid" aria-label="Available games">
         {cards.map((game) => (
-          <article className="game-card" key={game.type}>
-            <div className="game-card__header">
-              <div>
-                <p className="game-card__label">Game</p>
-                <h2>{game.name}</h2>
-              </div>
-              <span className="price-pill">{game.price} DKK</span>
-            </div>
-
-            <div className="game-card__meta">
-              <span>{game.resources.length} available resources</span>
-              <span>{game.nextSlot ? `Next slot: ${game.nextSlot}` : 'Fully booked'}</span>
-            </div>
-
-            <Link to={`/book/${game.type}`} className="primary-button">
-              Book now
-            </Link>
-          </article>
+          <GameCard
+            key={game.type}
+            gameType={game.type}
+            name={game.name}
+            price={game.price}
+            count={game.resources.length}
+            nextSlot={game.nextSlot}
+          />
         ))}
       </section>
     </div>

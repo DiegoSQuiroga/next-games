@@ -1,0 +1,81 @@
+/* ============================================================
+   NEXT GAMES DESIGN SYSTEM
+   Dark premium theme for Next House Copenhagen
+   ============================================================ */
+
+:root {
+  /* Color Palette */
+  --color-bg-dark: #0a110e;
+  --color-bg-base: #0d1613;
+  --color-surface: #121b17;
+  --color-surface-raised: #16211d;
+  --color-border: rgba(80, 177, 131, 0.15);
+  --color-border-subtle: rgba(80, 177, 131, 0.08);
+  --color-border-focus: rgba(80, 177, 131, 0.35);
+
+  /* Primary Accent */
+  --color-accent: #2fc77d;
+  --color-accent-hover: #1fb071;
+  --color-accent-dim: rgba(47, 199, 125, 0.15);
+
+  /* Status Colors */
+  --color-status-pending: #d4a638;
+  --color-status-pending-bg: rgba(212, 166, 56, 0.12);
+  --color-status-confirmed: #4db888;
+  --color-status-confirmed-bg: rgba(77, 184, 136, 0.12);
+  --color-status-cancelled: #c55c5c;
+  --color-status-cancelled-bg: rgba(197, 92, 92, 0.12);
+  --color-status-completed: #5a8fbc;
+  --color-status-completed-bg: rgba(90, 143, 188, 0.12);
+
+  /* Text */
+  --color-text-primary: #f0faf5;
+  --color-text-secondary: #d5e6df;
+  --color-text-tertiary: #a5c9b8;
+  --color-text-muted: #7a9a8a;
+
+  /* Spacing */
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 20px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+  --space-3xl: 40px;
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+
+  /* Typography */
+  --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-family-display: var(--font-family-sans);
+
+  /* Shadows */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.22);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-smooth: 300ms ease;
+
+  /* Z-index */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-normal: 0ms;
+    --transition-smooth: 0ms;
+  }
+}

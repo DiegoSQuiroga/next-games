@@ -1,142 +1,54 @@
 import { useMemo, useState } from 'react'
+import { createBookingGroup, getAvailabilityForGame, OPERATING_SLOT_TIMES } from '../domain/booking-engine'
+import { GAME_TYPES, getGameByType } from '../domain/games'
 import { bookingRepository } from '../services/bookingRepository'
-import type { BookingGroup, BookingStatus } from '../domain/types'
+import StatusBadge from '../components/StatusBadge'
+import { formatDateLabel, formatDateTime, formatEndTime, formatMoney, formatStatusLabel } from '../utils/formatters'
+import type { BookingGroup, BookingStatus, GameType } from '../domain/types'
 
-const STATUS_FILTERS = ['All', 'PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED', 'COMPLETED'] as const
+type View = 'overview' | 'schedule' | 'bookings'
+type Filter = 'ALL' | BookingStatus
+type FormState = { customerName: string; gameType: GameType; date: string; time: string; secondGameType: GameType; secondTime: string; status: 'PENDING_PAYMENT' | 'CONFIRMED' }
+const today = new Date().toISOString().slice(0, 10)
+const emptyForm: FormState = { customerName: '', gameType: 'pool', date: today, time: '18:00', secondGameType: 'pool', secondTime: '', status: 'PENDING_PAYMENT' }
 
-type StatusFilter = (typeof STATUS_FILTERS)[number]
-
-function getGroupStatus(group: BookingGroup): BookingStatus {
-  if (group.reservations.some((reservation) => reservation.status === 'CONFIRMED')) {
-    return 'CONFIRMED'
-  }
-
-  if (group.reservations.some((reservation) => reservation.status === 'CANCELLED')) {
-    return 'CANCELLED'
-  }
-
-  if (group.reservations.some((reservation) => reservation.status === 'COMPLETED')) {
-    return 'COMPLETED'
-  }
-
-  return 'PENDING_PAYMENT'
+function groupStatus(group: BookingGroup): BookingStatus {
+  if (group.reservations.some((r) => r.status === 'CONFIRMED')) return 'CONFIRMED'
+  if (group.reservations.some((r) => r.status === 'PENDING_PAYMENT')) return 'PENDING_PAYMENT'
+  return group.reservations[0]?.status ?? 'CANCELLED'
 }
 
 function AdminPage() {
-  const [filter, setFilter] = useState<StatusFilter>('All')
-  const [search, setSearch] = useState('')
-  const groups = bookingRepository.getAllGroups()
+  const [view, setView] = useState<View>('overview'); const [filter, setFilter] = useState<Filter>('ALL'); const [search, setSearch] = useState(''); const [, redraw] = useState(0)
+  const [selected, setSelected] = useState<BookingGroup | null>(null); const [editing, setEditing] = useState<BookingGroup | 'new' | null>(null); const [form, setForm] = useState<FormState>(emptyForm); const [formError, setFormError] = useState(''); const [scheduleGame, setScheduleGame] = useState<GameType>('pool')
+  const groups = bookingRepository.getAllGroups().sort((a, b) => a.paymentDeadline.localeCompare(b.paymentDeadline))
+  const summary = useMemo(() => ({ ALL: groups.length, PENDING_PAYMENT: groups.filter((g) => groupStatus(g) === 'PENDING_PAYMENT').length, CONFIRMED: groups.filter((g) => groupStatus(g) === 'CONFIRMED').length, CANCELLED: groups.filter((g) => groupStatus(g) === 'CANCELLED').length }), [groups])
+  const visible = groups.filter((g) => (filter === 'ALL' || groupStatus(g) === filter) && `${g.customerName} ${g.bookingReference}`.toLowerCase().includes(search.toLowerCase()))
+  const mutate = (group: BookingGroup) => { bookingRepository.updateGroup(group); setSelected(null); redraw((v) => v + 1) }
+  const confirm = (group: BookingGroup) => mutate({ ...group, paymentState: 'PAID', reservations: group.reservations.map((r) => ({ ...r, status: 'CONFIRMED' })) })
+  const cancel = (group: BookingGroup) => mutate({ ...group, reservations: group.reservations.map((r) => ({ ...r, status: 'CANCELLED', resourceId: null })) })
+  const openForm = (group?: BookingGroup) => { setSelected(null); setEditing(group ?? 'new'); setFormError(''); setForm(group ? { customerName: group.customerName, gameType: group.reservations[0].gameType, date: group.reservations[0].date, time: group.reservations[0].startTime, secondGameType: group.reservations[1]?.gameType ?? group.reservations[0].gameType, secondTime: group.reservations[1]?.startTime ?? '', status: groupStatus(group) === 'CONFIRMED' ? 'CONFIRMED' : 'PENDING_PAYMENT' } : emptyForm) }
+  const saveForm = () => { try { const old = editing === 'new' ? null : editing; const remainingGroups = groups.filter((g) => g.id !== old?.id); const remainingReservations = remainingGroups.flatMap((g) => g.reservations); const inputs = [{ gameType: form.gameType, date: form.date, time: form.time }, ...(form.secondTime ? [{ gameType: form.secondGameType, date: form.date, time: form.secondTime }] : [])]; let next = createBookingGroup({ customerName: form.customerName, reservationInputs: inputs, existingGroups: remainingGroups, allReservations: remainingReservations }); if (next.reservations.some((r) => !r.resourceId)) throw new Error('One or more selected sessions are full.'); if (form.status === 'CONFIRMED') next = { ...next, paymentState: 'PAID', reservations: next.reservations.map((r) => ({ ...r, status: 'CONFIRMED' })) }; if (old) next = { ...next, id: old.id, bookingReference: old.bookingReference, reservations: next.reservations.map((r, i) => ({ ...r, bookingGroupId: old.id, id: old.reservations[i]?.id ?? `${old.id}-${i}` })) }; if (old) bookingRepository.updateGroup(next); else bookingRepository.saveGroup(next); setEditing(null); redraw((v) => v + 1) } catch (error) { setFormError((error as Error).message) } }
 
-  const visibleGroups = useMemo(() => {
-    return groups.filter((group) => {
-      const status = getGroupStatus(group)
-      const matchesFilter = filter === 'All' || status === filter
-      const haystack = `${group.customerName} ${group.bookingReference}`.toLowerCase()
-      const matchesSearch = haystack.includes(search.toLowerCase())
-      return matchesFilter && matchesSearch
-    })
-  }, [filter, groups, search])
+  const bookingList = <div className="booking-table-wrap"><div className="booking-table booking-table--head"><span>Ref</span><span>Customer</span><span>Game & time</span><span>Total</span><span>Deadline</span><span>Status</span><span>Actions</span></div>{visible.map((g) => <div className="booking-table" key={g.id} role="button" tabIndex={0} onClick={() => setSelected(g)} onKeyDown={(e) => e.key === 'Enter' && setSelected(g)}><span className="booking-ref">{g.bookingReference}</span><strong>{g.customerName}</strong><span>{g.reservations.map((r) => `${getGameByType(r.gameType).name} · ${r.startTime}`).join(' / ')}</span><b>{formatMoney(g.totalPrice)}</b><span>{formatDateTime(g.paymentDeadline)}</span><StatusBadge status={groupStatus(g)} /><span className="row-actions" onClick={(e) => e.stopPropagation()}>{groupStatus(g) === 'PENDING_PAYMENT' && <button onClick={() => confirm(g)}>Confirm</button>}<button onClick={() => openForm(g)}>Edit</button><button className="danger-link" onClick={() => cancel(g)}>Cancel</button></span></div>)}{!visible.length && <div className="empty-state">No bookings match these filters.</div>}</div>
 
-  const handleConfirmPayment = (groupId: string) => {
-    const group = bookingRepository.getAllGroups().find((item) => item.id === groupId)
-
-    if (!group) {
-      return
-    }
-
-    bookingRepository.updateGroup({
-      ...group,
-      paymentState: 'PAID',
-      reservations: group.reservations.map((reservation) => ({
-        ...reservation,
-        status: 'CONFIRMED',
-      })),
-    })
-  }
-
-  const handleCancel = (groupId: string) => {
-    const group = bookingRepository.getAllGroups().find((item) => item.id === groupId)
-
-    if (!group) {
-      return
-    }
-
-    bookingRepository.updateGroup({
-      ...group,
-      reservations: group.reservations.map((reservation) => ({
-        ...reservation,
-        status: 'CANCELLED',
-        resourceId: null,
-      })),
-    })
-  }
-
-  return (
-    <div className="page-shell admin-page">
-      <header className="section-header">
-        <div>
-          <p className="eyebrow">Reception tools</p>
-          <h1>Admin dashboard</h1>
-        </div>
-        <p className="note-text">No authentication yet. This will be added later.</p>
-      </header>
-
-      <div className="tool-bar">
-        <select value={filter} onChange={(event) => setFilter(event.target.value as StatusFilter)}>
-          {STATUS_FILTERS.map((option) => (
-            <option value={option} key={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search by customer name or reference"
-        />
-      </div>
-
-      <div className="admin-list">
-        {visibleGroups.length === 0 ? (
-          <p className="empty-state">No bookings match the current filters.</p>
-        ) : null}
-
-        {visibleGroups.map((group) => {
-          const status = getGroupStatus(group)
-
-          return (
-            <article className="admin-card" key={group.id}>
-              <div className="admin-card__top">
-                <div>
-                  <p className="eyebrow">{group.bookingReference}</p>
-                  <h2>{group.customerName}</h2>
-                </div>
-                <span className="status-badge status-badge--pending">{status}</span>
-              </div>
-
-              <div className="admin-card__rows">
-                <span>Games: {group.reservations.map((reservation) => reservation.gameType).join(', ')}</span>
-                <span>Times: {group.reservations.map((reservation) => `${reservation.date} ${reservation.startTime}`).join(' · ')}</span>
-                <span>Total: {group.totalPrice} DKK</span>
-                <span>Deadline: {group.paymentDeadline}</span>
-              </div>
-
-              <div className="admin-card__actions">
-                <button type="button" className="primary-button" onClick={() => handleConfirmPayment(group.id)}>
-                  Confirm payment
-                </button>
-                <button type="button" className="secondary-button" onClick={() => handleCancel(group.id)}>
-                  Cancel
-                </button>
-              </div>
-            </article>
-          )
-        })}
-      </div>
-    </div>
-  )
+  return <main className="admin-shell"><header className="admin-titlebar"><div><p className="eyebrow">Next House · Reception</p><h1>{view[0].toUpperCase() + view.slice(1)}</h1></div><span className="dev-badge">DEV · No authentication</span><button className="button button--primary" onClick={() => openForm()}>+ New booking</button></header>
+    <nav className="admin-tabs" aria-label="Reception views">{(['overview', 'schedule', 'bookings'] as View[]).map((item) => <button className={view === item ? 'active' : ''} onClick={() => setView(item)} key={item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</nav>
+    {view !== 'schedule' && <><div className="admin-stats">{(['ALL', 'PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED'] as Filter[]).map((item) => <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}><span>{item === 'ALL' ? 'All' : formatStatusLabel(item)}</span><strong>{summary[item as keyof typeof summary]}</strong></button>)}</div><div className="admin-tools"><label><span className="sr-only">Search bookings</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or reference…" /></label><span>{visible.length} booking{visible.length === 1 ? '' : 's'}</span></div>{bookingList}</>}
+    {view === 'schedule' && <Schedule groups={groups} selectedGame={scheduleGame} setSelectedGame={setScheduleGame} onSelect={setSelected} />}
+    <nav className="admin-bottom" aria-label="Mobile reception navigation">{(['overview', 'schedule', 'bookings'] as View[]).map((item) => <button className={view === item ? 'active' : ''} onClick={() => setView(item)} key={item}><span aria-hidden="true">{item === 'overview' ? '⌂' : item === 'schedule' ? '▦' : '≡'}</span>{item}</button>)}<button onClick={() => openForm()}><span aria-hidden="true">＋</span>New</button></nav>
+    {selected && <div className="sheet-backdrop" onMouseDown={() => setSelected(null)}><aside className="detail-sheet" onMouseDown={(e) => e.stopPropagation()} aria-label="Booking details"><button className="sheet-close" onClick={() => setSelected(null)} aria-label="Close">×</button><p className="eyebrow">Booking detail</p><h2>{selected.bookingReference}</h2><h3>{selected.customerName}</h3><StatusBadge status={groupStatus(selected)} />{selected.reservations.map((r) => <div className="detail-session" key={r.id}><strong>{getGameByType(r.gameType).name}</strong><span>{formatDateLabel(r.date)} · {r.startTime}–{formatEndTime(r.startTime)}</span><small>{getGameByType(r.gameType).resources.find((resource) => resource.id === r.resourceId)?.label ?? 'No resource assigned'}</small></div>)}<dl><div><dt>Total</dt><dd>{formatMoney(selected.totalPrice)}</dd></div><div><dt>Deadline</dt><dd>{formatDateTime(selected.paymentDeadline)}</dd></div></dl><div className="sheet-actions">{groupStatus(selected) === 'PENDING_PAYMENT' && <button className="button button--primary" onClick={() => confirm(selected)}>Confirm payment</button>}<button className="button button--secondary" onClick={() => openForm(selected)}>Edit</button><button className="button button--danger" onClick={() => cancel(selected)}>Cancel booking</button></div></aside></div>}
+    {editing && <BookingForm form={form} setForm={setForm} error={formError} onClose={() => setEditing(null)} onSave={saveForm} title={editing === 'new' ? 'New booking' : `Edit ${editing.bookingReference}`} />}
+  </main>
 }
 
+function Schedule({ groups, selectedGame, setSelectedGame, onSelect }: { groups: BookingGroup[]; selectedGame: GameType; setSelectedGame: (g: GameType) => void; onSelect: (g: BookingGroup) => void }) {
+  const reservations = groups.flatMap((g) => g.reservations.map((r) => ({ ...r, group: g }))).filter((r) => r.date === today && r.status !== 'CANCELLED')
+  return <section className="schedule"><div className="schedule-heading"><div><p className="eyebrow">Live schedule</p><h2>{formatDateLabel(today)}</h2></div><select value={selectedGame} onChange={(e) => setSelectedGame(e.target.value as GameType)}>{GAME_TYPES.map((g) => <option value={g} key={g}>{getGameByType(g).name}</option>)}</select></div><div className="schedule-grid"><div className="schedule-grid__head">Time</div>{GAME_TYPES.map((g) => <div className="schedule-grid__head" key={g}>{getGameByType(g).name}<small>{getGameByType(g).resources.length} resources</small></div>)}{OPERATING_SLOT_TIMES.map((time) => <div className="schedule-grid__row" key={time}><strong>{time}</strong>{GAME_TYPES.map((game) => { const items = reservations.filter((r) => r.startTime === time && r.gameType === game); return <div className="schedule-cell" key={game}>{items.map((r) => <button key={r.id} className={`schedule-pill schedule-pill--${r.status.toLowerCase()}`} onClick={() => onSelect(r.group)}>{r.customerName}<small>{formatStatusLabel(r.status)}</small></button>)}</div> })}</div>)}</div><div className="mobile-schedule">{OPERATING_SLOT_TIMES.map((time) => { const game = getGameByType(selectedGame); const items = reservations.filter((r) => r.startTime === time && r.gameType === selectedGame); const availability = getAvailabilityForGame(selectedGame, today, reservations).find((s) => s.time === time)!; return <div className="mobile-slot" key={time}><div><strong>{time}</strong><span>{availability.available} / {game.resources.length} available</span></div>{items.map((r) => <button key={r.id} onClick={() => onSelect(r.group)}>{r.customerName}<StatusBadge status={r.status} /></button>)}</div> })}</div></section>
+}
+
+function BookingForm({ form, setForm, error, onClose, onSave, title }: { form: FormState; setForm: (f: FormState) => void; error: string; onClose: () => void; onSave: () => void; title: string }) {
+  const field = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm({ ...form, [key]: value })
+  return <div className="sheet-backdrop" onMouseDown={onClose}><aside className="booking-form-sheet" onMouseDown={(e) => e.stopPropagation()}><button className="sheet-close" onClick={onClose} aria-label="Close">×</button><p className="eyebrow">Reception booking</p><h2>{title}</h2><div className="form-grid"><label className="field field--full"><span className="field__label">Customer name</span><input className="field__input" value={form.customerName} onChange={(e) => field('customerName', e.target.value)} /></label><label className="field"><span className="field__label">Game</span><select className="field__input" value={form.gameType} onChange={(e) => field('gameType', e.target.value as GameType)}>{GAME_TYPES.map((g) => <option value={g} key={g}>{getGameByType(g).name}</option>)}</select></label><label className="field"><span className="field__label">Date</span><input className="field__input" type="date" value={form.date} onChange={(e) => field('date', e.target.value)} /></label><label className="field"><span className="field__label">Time</span><select className="field__input" value={form.time} onChange={(e) => field('time', e.target.value)}>{OPERATING_SLOT_TIMES.map((t) => <option key={t}>{t}</option>)}</select></label><label className="field"><span className="field__label">Status</span><select className="field__input" value={form.status} onChange={(e) => field('status', e.target.value as FormState['status'])}><option value="PENDING_PAYMENT">Pending payment</option><option value="CONFIRMED">Paid / confirmed</option></select></label><div className="form-divider field--full"><span>Optional second session</span></div><label className="field"><span className="field__label">Game</span><select className="field__input" value={form.secondGameType} onChange={(e) => field('secondGameType', e.target.value as GameType)}>{GAME_TYPES.map((g) => <option value={g} key={g}>{getGameByType(g).name}</option>)}</select></label><label className="field"><span className="field__label">Time</span><select className="field__input" value={form.secondTime} onChange={(e) => field('secondTime', e.target.value)}><option value="">No second session</option>{OPERATING_SLOT_TIMES.map((t) => <option key={t}>{t}</option>)}</select></label></div>{error && <p className="form-error" role="alert">{error}</p>}<div className="sheet-actions"><button className="button button--primary" onClick={onSave}>Save booking</button><button className="button button--secondary" onClick={onClose}>Cancel</button></div></aside></div>
+}
 export default AdminPage

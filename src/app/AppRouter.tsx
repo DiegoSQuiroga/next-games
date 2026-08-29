@@ -1,22 +1,53 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom'
+import Logo from '../components/Logo'
 import HomePage from '../pages/HomePage'
 import GameBookingPage from '../pages/GameBookingPage'
 import BookingReviewPage from '../pages/BookingReviewPage'
 import BookingStatusPage from '../pages/BookingStatusPage'
 import AdminPage from '../pages/AdminPage'
 
-function AppRouter() {
+function AppLayout() {
+  const location = useLocation()
+  const isAdminPage = location.pathname.startsWith('/admin')
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/book/:game" element={<GameBookingPage />} />
-        <Route path="/booking/review" element={<BookingReviewPage />} />
-        <Route path="/booking/:reference" element={<BookingStatusPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-      </Routes>
-    </BrowserRouter>
+    <div className="app-wrapper">
+        <header className="topbar">
+          <div className="topbar__left">
+            <Link to="/" className="topbar__brand" aria-label="Go to home page">
+              <Logo compact />
+            </Link>
+          </div>
+
+          <nav className="topbar__nav" aria-label="Main navigation">
+            {!isAdminPage && (
+              <Link to="/admin" className="topbar__link">
+                Reception
+              </Link>
+            )}
+            {isAdminPage && (
+              <Link to="/" className="topbar__link">
+                Book games
+              </Link>
+            )}
+          </nav>
+        </header>
+
+        <div className="page-wrapper">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/book/:game" element={<GameBookingPage />} />
+            <Route path="/booking/review" element={<BookingReviewPage />} />
+            <Route path="/booking/:reference" element={<BookingStatusPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+          </Routes>
+        </div>
+    </div>
   )
+}
+
+function AppRouter() {
+  return <BrowserRouter><AppLayout /></BrowserRouter>
 }
 
 export default AppRouter
