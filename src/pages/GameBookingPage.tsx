@@ -20,6 +20,7 @@ function GameBookingPage() {
   const continueBooking = () => { if (!selectedTimes.length) return; sessionStorage.setItem('next-games-draft', JSON.stringify({ gameType: selectedGame, date: selectedDate, times: selectedTimes, quantity: selectedTimes.length })); navigate('/booking/review') }
   return <main className="page-shell booking-page">
     <Link to="/" className="back-link">← Games</Link>
+    <ol className="flow-steps" aria-label="Booking progress"><li className="is-done">Game</li><li className="is-active">Date & time</li><li>Name</li><li>Confirm</li></ol>
     <section className="booking-game"><div className="booking-game__art"><GameImage gameType={selectedGame} /></div><div><h1>{game.name}</h1><p>{game.price} DKK <span>/ hour</span></p></div></section>
     <section className="booking-section"><CompactDatePicker value={selectedDate} onChange={(date) => { setSelectedDate(date); setSelectedTimes([]) }} /></section>
     <section className="booking-section"><div className="section-title-row"><h2>Time</h2><span>{selectedTimes.length}/2 selected</span></div><div className="time-list">

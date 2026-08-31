@@ -4,12 +4,14 @@ import GameImage from './GameImage'
 
 function GameCard({
   gameType,
+  index,
   name,
   price,
   count,
   nextSlot,
 }: {
   gameType: GameType
+  index: number
   name: string
   price: number
   count: number
@@ -19,6 +21,7 @@ function GameCard({
     <Link to={`/book/${gameType}`} className="game-card" aria-label={`Book ${name}`}>
       <div className="game-card__image">
         <GameImage gameType={gameType} />
+        <span className="game-card__number" aria-hidden="true">0{index}</span>
       </div>
 
       <div className="game-card__content">

@@ -25,15 +25,22 @@ function HomePage() {
     <div className="page-shell">
       <section className="hero">
         <div className="hero__copy">
+          <p className="hero__label">Play at Next House</p>
           <h1 className="hero__title">Next Games</h1>
           <p className="hero__subtitle">Book. Play. Pay at reception.</p>
         </div>
       </section>
 
-      <section className="card-grid" aria-label="Available games">
-        {cards.map((game) => (
+      <section className="games-section" aria-labelledby="games-heading">
+        <div className="games-heading">
+          <h2 id="games-heading">Choose your game</h2>
+          <span>1 hour sessions</span>
+        </div>
+        <div className="card-grid">
+        {cards.map((game, index) => (
           <GameCard
             key={game.type}
+            index={index + 1}
             gameType={game.type}
             name={game.name}
             price={game.price}
@@ -41,6 +48,7 @@ function HomePage() {
             nextSlot={game.nextSlot}
           />
         ))}
+        </div>
       </section>
     </div>
   )
