@@ -28,11 +28,11 @@ function GameCard({
         </div>
 
         <div className="game-card__meta">
-          <span>{count} {count === 1 ? 'resource' : 'resources'}</span>
-          <span>{nextSlot ? `Next: ${nextSlot}` : 'Fully booked'}</span>
+          <span>{count} available</span>
+          <span>{nextSlot ? `Next ${nextSlot}` : 'Full today'}</span>
         </div>
 
-        <span className="game-card__cta">Book now</span>
+        <span className="game-card__cta">Book <span aria-hidden="true">→</span></span>
       </div>
     </Link>
   )

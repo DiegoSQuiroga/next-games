@@ -14,7 +14,7 @@ function CompactDatePicker({
 
   return (
     <div className="date-picker">
-      <label className="date-picker__label">Select a date</label>
+      <div className="date-picker__label">Date</div>
       <div className="date-picker__scroll">
         {dates.map((date) => {
           const dateStr = format(date, 'yyyy-MM-dd')

@@ -25,9 +25,8 @@ function HomePage() {
     <div className="page-shell">
       <section className="hero">
         <div className="hero__copy">
-          <p className="hero__label">Next House Copenhagen</p>
-          <h1 className="hero__title">Book your next game session</h1>
-          <p className="hero__subtitle">Play. Enjoy. Pay at the bar.</p>
+          <h1 className="hero__title">Next Games</h1>
+          <p className="hero__subtitle">Book. Play. Pay at reception.</p>
         </div>
       </section>
 
