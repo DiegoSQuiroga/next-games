@@ -11,7 +11,7 @@ function AppLayout() {
   const isAdminPage = location.pathname.startsWith('/admin')
 
   return (
-    <div className="app-wrapper">
+    <div className={`app-wrapper ${isAdminPage ? 'app-wrapper--admin' : 'app-wrapper--customer'}`}>
         <header className="topbar">
           <div className="topbar__left">
             <Link to="/" className="topbar__brand" aria-label="Go to home page">

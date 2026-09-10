@@ -25,9 +25,7 @@ function HomePage() {
     <div className="page-shell">
       <section className="hero">
         <div className="hero__copy">
-          <p className="hero__label">Play at Next House</p>
           <h1 className="hero__title">Next Games</h1>
-          <p className="hero__subtitle">Book. Play. Pay at reception.</p>
         </div>
       </section>
 
@@ -37,10 +35,9 @@ function HomePage() {
           <span>1 hour sessions</span>
         </div>
         <div className="card-grid">
-        {cards.map((game, index) => (
+        {cards.map((game) => (
           <GameCard
             key={game.type}
-            index={index + 1}
             gameType={game.type}
             name={game.name}
             price={game.price}
