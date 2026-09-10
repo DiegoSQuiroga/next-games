@@ -1,4 +1,5 @@
 import { format, addDays } from 'date-fns'
+import { getOperatingDate } from '../domain/session-time'
 
 function CompactDatePicker({
   value,
@@ -9,7 +10,7 @@ function CompactDatePicker({
   onChange: (date: string) => void
   daysAhead?: number
 }) {
-  const today = new Date()
+  const today = new Date(`${getOperatingDate()}T12:00:00`)
   const dates = Array.from({ length: daysAhead }, (_, i) => addDays(today, i))
 
   return (

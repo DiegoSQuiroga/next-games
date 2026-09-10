@@ -1,3 +1,4 @@
+import { buildSessionWindow } from '../domain/session-time'
 import type { BookingStatus } from '../domain/types'
 
 export function formatStatusLabel(status: BookingStatus): string {
@@ -31,8 +32,8 @@ export function formatDeadlineText(deadline: string, now = new Date()): string {
   return `Pay before ${deadlineDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
 }
 
-export function formatDateLabel(date: string): string {
-  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+export function formatDateLabel(date: string, startTime?: string): string {
+  return new Date(startTime ? buildSessionWindow(date, startTime).sessionStart : `${date}T00:00:00`).toLocaleDateString(undefined, {
     weekday: 'short',
     month: 'short',
     day: 'numeric',

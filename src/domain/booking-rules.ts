@@ -1,4 +1,5 @@
 import { addMinutes, isAfter, isBefore, isSameMinute, parseISO } from 'date-fns'
+import { buildSessionWindow, timeRangesOverlap } from './session-time'
 import { getGameByType } from './games'
 import type { BookingGroup, BookingStatus, GameType, Reservation, ResourceId } from './types'
 
@@ -47,30 +48,24 @@ export function calculatePaymentDeadline(createdAt: string, sessionStart: string
   return addMinutes(createdDate, 10).toISOString()
 }
 
+export function getAvailableResources(
+  gameType: GameType, reservations: Reservation[], date?: string, startTime?: string,
+): ResourceId[] {
+  const requested = date && startTime ? buildSessionWindow(date, startTime) : null
+  const taken = new Set(reservations
+    .filter((r) => r.gameType === gameType && r.resourceId && isResourceOccupied(r.status))
+    // Rebuild from the operating date for compatibility with older midnight records.
+    .filter((r) => requested ? timeRangesOverlap(buildSessionWindow(r.date, r.startTime), requested) : (!date || r.date === date))
+    .map((r) => r.resourceId))
+  return getGameByType(gameType).resources.map((r) => r.id).filter((id) => !taken.has(id))
+}
+
 export function findFirstAvailableResource(
-  gameType: GameType,
-  reservations: Reservation[],
-  date?: string,
-  startTime?: string,
+  gameType: GameType, reservations: Reservation[], date?: string, startTime?: string,
   existingAssignments: ResourceId[] = [],
 ): ResourceId | null {
-  const game = getGameByType(gameType)
-
-  const taken = new Set(
-    reservations
-      .filter((reservation) => reservation.gameType === gameType)
-      .filter((reservation) => reservation.resourceId && isResourceOccupied(reservation.status))
-      .filter((reservation) => (date ? reservation.date === date : true))
-      .filter((reservation) => (startTime ? reservation.startTime === startTime : true))
-      .map((reservation) => reservation.resourceId as ResourceId),
-  )
-
-  const candidates = game.resources
-    .map((resource) => resource.id)
-    .filter((resourceId) => !taken.has(resourceId))
-    .filter((resourceId) => !existingAssignments.includes(resourceId))
-
-  return candidates[0] ?? null
+  return getAvailableResources(gameType, reservations, date, startTime)
+    .find((id) => !existingAssignments.includes(id)) ?? null
 }
 
 export function canCustomerCreateReservation(

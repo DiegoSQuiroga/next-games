@@ -144,3 +144,15 @@ The UI will not care whether the data comes from:
 The domain rules stay unchanged because they are separated from the data layer.
 
 That is the main architectural idea behind this project: keep the booking rules independent from storage and rendering.
+
+## Booking time intervals and operating nights
+
+Customer start slots are generated every 30 minutes: 10:00, 10:30, through 23:30, then 00:00, 00:30 and 01:00. Session duration remains exactly 1 hour; there is no 01:30 customer slot. Reception can create or edit sessions starting at any minute using native time inputs, provided the entire hour falls within 10:00?02:00.
+
+The selected date identifies the operating night. Midnight starts belong to the following calendar date. The schedule uses that operating date and includes arbitrary-minute starts with their real start/end labels. Payment deadlines use the exact session datetime without rounding.
+
+Availability uses time-range overlap: existingStart < newEnd and newStart < existingEnd. Adjacent sessions do not conflict. A resource must be free for the entire requested interval. Only pending-payment and confirmed reservations occupy resources; inventory remains Pool 2, Darts 3, Ping Pong 1 and Shuffleboard 2.
+
+Slot generation, operating-date conversion and overlap detection live in src/domain/session-time.ts. Resource availability lives in booking-rules.ts; booking-engine.ts handles creation and admin editing. Group creation checks each new reservation against earlier assignments in the same group. Admin editing excludes the original group, validates all replacement sessions, preserves group/reference/reservation identities, and only saves after validation succeeds.
+
+Existing localStorage records retain their schema. Availability reconstructs their one-hour windows from operating date and start time, so older after-midnight datetime fields cannot bypass overlap checks. New and edited records store corrected session datetimes.

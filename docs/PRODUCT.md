@@ -229,3 +229,15 @@ Before building features, product and engineering should confirm the following:
 - Payment deadlines are calculated consistently for both single and grouped reservations.
 - Reservation states are updated correctly as bookings are created, paid, cancelled, completed, or expired.
 - The admin dashboard can operate on groups as a single unit while still allowing inspection of individual reservations.
+
+## Booking time intervals and operating nights
+
+Customer start slots are generated every 30 minutes: 10:00, 10:30, through 23:30, then 00:00, 00:30 and 01:00. Session duration remains exactly 1 hour; there is no 01:30 customer slot. Reception can create or edit sessions starting at any minute using native time inputs, provided the entire hour falls within 10:00?02:00.
+
+The selected date identifies the operating night. Midnight starts belong to the following calendar date. The schedule uses that operating date and includes arbitrary-minute starts with their real start/end labels. Payment deadlines use the exact session datetime without rounding.
+
+Availability uses time-range overlap: existingStart < newEnd and newStart < existingEnd. Adjacent sessions do not conflict. A resource must be free for the entire requested interval. Only pending-payment and confirmed reservations occupy resources; inventory remains Pool 2, Darts 3, Ping Pong 1 and Shuffleboard 2.
+
+Slot generation, operating-date conversion and overlap detection live in src/domain/session-time.ts. Resource availability lives in booking-rules.ts; booking-engine.ts handles creation and admin editing. Group creation checks each new reservation against earlier assignments in the same group. Admin editing excludes the original group, validates all replacement sessions, preserves group/reference/reservation identities, and only saves after validation succeeds.
+
+Existing localStorage records retain their schema. Availability reconstructs their one-hour windows from operating date and start time, so older after-midnight datetime fields cannot bypass overlap checks. New and edited records store corrected session datetimes.

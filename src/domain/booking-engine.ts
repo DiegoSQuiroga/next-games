@@ -1,11 +1,10 @@
-import { addDays, addMinutes, format, isBefore, parseISO } from 'date-fns'
+import { addDays, format, isBefore, parseISO } from 'date-fns'
 import { getGameByType } from './games'
-import { calculatePaymentDeadline, canCustomerCreateReservation, findFirstAvailableResource, normalizeCustomerName } from './booking-rules'
+import { calculatePaymentDeadline, canCustomerCreateReservation, findFirstAvailableResource, getAvailableResources, normalizeCustomerName } from './booking-rules'
 import type { BookingGroup, GameType, Reservation } from './types'
 
-export const OPERATING_START_HOUR = 10
-export const OPERATING_END_HOUR = 2
-export const OPERATING_SLOT_TIMES = ['10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00']
+import { buildSessionWindow, OPERATING_SLOT_TIMES } from './session-time'
+export { buildSessionWindow, OPERATING_SLOT_TIMES, OPERATING_START_HOUR, OPERATING_END_HOUR } from './session-time'
 
 export type SlotAvailability = {
   time: string
@@ -24,43 +23,18 @@ export function getSessionTimeLabels(date: string): string[] {
   return OPERATING_SLOT_TIMES.map((time) => `${date} ${time}`)
 }
 
-export function buildSessionWindow(date: string, startTime: string): { sessionStart: string; sessionEnd: string } {
-  const sessionStart = new Date(`${date}T${startTime}:00`)
-  const sessionEnd = addMinutes(sessionStart, 60)
-
-  return {
-    sessionStart: sessionStart.toISOString(),
-    sessionEnd: sessionEnd.toISOString(),
-  }
+export function getAvailabilityAtTime(
+  gameType: GameType, date: string, time: string, reservations: Reservation[],
+): SlotAvailability {
+  const capacity = getGameByType(gameType).resources.length
+  const available = getAvailableResources(gameType, reservations, date, time).length
+  return { time, occupied: capacity - available, capacity, available, isFull: available === 0 }
 }
 
 export function getAvailabilityForGame(
-  gameType: GameType,
-  date: string,
-  reservations: Reservation[],
+  gameType: GameType, date: string, reservations: Reservation[],
 ): SlotAvailability[] {
-  const game = getGameByType(gameType)
-  const capacity = game.resources.length
-
-  return OPERATING_SLOT_TIMES.map((time) => {
-    const occupied = reservations.filter((reservation) => {
-      const sameGame = reservation.gameType === gameType
-      const sameDate = reservation.date === date
-      const sameTime = reservation.startTime === time
-      const active = ['PENDING_PAYMENT', 'CONFIRMED'].includes(reservation.status)
-      return sameGame && sameDate && sameTime && active
-    }).length
-
-    const available = Math.max(0, capacity - occupied)
-
-    return {
-      time,
-      occupied,
-      capacity,
-      available,
-      isFull: occupied >= capacity,
-    }
-  })
+  return OPERATING_SLOT_TIMES.map((time) => getAvailabilityAtTime(gameType, date, time, reservations))
 }
 
 export function getNextAvailableSlot(gameType: GameType, date: string, reservations: Reservation[]): string | null {
@@ -82,6 +56,7 @@ export function createReservationRecord(params: {
   const { bookingGroupId, gameType, date, startTime, customerName, createdAt, reservations, index } = params
   const resourceId = findFirstAvailableResource(gameType, reservations, date, startTime)
   const { sessionStart, sessionEnd } = buildSessionWindow(date, startTime)
+  if (!resourceId) throw new Error('One or more selected sessions are full.')
   const paymentDeadline = calculatePaymentDeadline(createdAt, sessionStart)
 
   return {
@@ -117,34 +92,35 @@ export function createBookingGroup(params: {
   reservationInputs: Array<{ gameType: GameType; date: string; time: string }>
   existingGroups: BookingGroup[]
   allReservations: Reservation[]
+  source?: 'customer' | 'admin'
   createdAt?: string
 }): BookingGroup {
-  const { customerName, reservationInputs, existingGroups, allReservations, createdAt = new Date().toISOString() } = params
+  const { customerName, reservationInputs, existingGroups, allReservations, createdAt = new Date().toISOString(), source = 'customer' } = params
   const normalizedName = normalizeCustomerName(customerName)
 
   if (!normalizedName) {
     throw new Error('Customer name is required.')
   }
 
-  if (!canCustomerCreateReservation(customerName, allReservations)) {
-    throw new Error('This customer already has 2 active reservations.')
+  if (reservationInputs.length < 1 || reservationInputs.length > 2) {
+    throw new Error('Choose one or two sessions.')
   }
-
-  const bookingGroupId = `group-${Date.now()}`
+  const bookingGroupId = 'group-' + crypto.randomUUID()
   const bookingReference = generateBookingReference(existingGroups)
-
-  const reservations = reservationInputs.map((input, index) =>
-    createReservationRecord({
-      bookingGroupId,
-      gameType: input.gameType,
-      date: input.date,
-      startTime: input.time,
-      customerName: normalizedName,
-      createdAt,
-      reservations: allReservations,
-      index,
-    }),
-  )
+  const reservations: Reservation[] = []
+  for (const [index, input] of reservationInputs.entries()) {
+    if (source === 'customer' && !OPERATING_SLOT_TIMES.includes(input.time)) {
+      throw new Error('Choose a customer start time in 30-minute increments.')
+    }
+    const occupied = [...allReservations, ...reservations]
+    if (!canCustomerCreateReservation(customerName, occupied)) {
+      throw new Error('This customer already has 2 active reservations.')
+    }
+    reservations.push(createReservationRecord({
+      bookingGroupId, gameType: input.gameType, date: input.date, startTime: input.time,
+      customerName: normalizedName, createdAt, reservations: occupied, index,
+    }))
+  }
 
   const totalPrice = reservations.reduce((sum, reservation) => sum + reservation.price, 0)
   const paymentDeadline = reservations.reduce((earliest, reservation) => {
@@ -166,6 +142,33 @@ export function createBookingGroup(params: {
     createdAt,
     paymentDeadline,
     paymentState: 'PENDING',
+  }
+}
+
+export function saveAdminBooking(params: {
+  customerName: string
+  reservationInputs: Array<{ gameType: GameType; date: string; time: string }>
+  groups: BookingGroup[]
+  original?: BookingGroup | null
+  status: 'PENDING_PAYMENT' | 'CONFIRMED'
+}): BookingGroup {
+  const { original, groups, status } = params
+  const remaining = groups.filter((g) => g.id !== original?.id)
+  const next = createBookingGroup({
+    ...params, source: 'admin', existingGroups: groups,
+    allReservations: remaining.flatMap((g) => g.reservations),
+    createdAt: original?.createdAt,
+  })
+  return {
+    ...next,
+    id: original?.id ?? next.id,
+    bookingReference: original?.bookingReference ?? next.bookingReference,
+    paymentState: status === 'CONFIRMED' ? 'PAID' : 'PENDING',
+    reservations: next.reservations.map((r, index) => ({
+      ...r, status,
+      id: original?.reservations[index]?.id ?? r.id,
+      bookingGroupId: original?.id ?? next.id,
+    })),
   }
 }
 
