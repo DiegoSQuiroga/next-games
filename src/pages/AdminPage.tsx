@@ -28,8 +28,8 @@ function AdminPage() {
   const [actionError, setActionError] = useState('')
   const selected = selectedSnapshot ? data.find(g => g.id === selectedSnapshot.id) ?? null : null
   const groups = [...data].sort((a, b) => a.paymentDeadline.localeCompare(b.paymentDeadline))
-  const summary = useMemo(() => ({ ALL: groups.length, PENDING_PAYMENT: groups.filter((g) => groupStatus(g) === 'PENDING_PAYMENT').length, CONFIRMED: groups.filter((g) => groupStatus(g) === 'CONFIRMED').length, CANCELLED: groups.filter((g) => groupStatus(g) === 'CANCELLED').length }), [groups])
-  const visible = groups.filter((g) => (filter === 'ALL' || groupStatus(g) === filter) && `${g.customerName} ${g.bookingReference}`.toLowerCase().includes(search.toLowerCase()))
+  const summary = useMemo(() => ({ ALL: groups.filter((g) => groupStatus(g) !== 'CANCELLED').length, PENDING_PAYMENT: groups.filter((g) => groupStatus(g) === 'PENDING_PAYMENT').length, CONFIRMED: groups.filter((g) => groupStatus(g) === 'CONFIRMED').length, CANCELLED: groups.filter((g) => groupStatus(g) === 'CANCELLED').length }), [groups])
+  const visible = groups.filter((g) => (filter === 'ALL' ? groupStatus(g) !== 'CANCELLED' : groupStatus(g) === filter) && `${g.customerName} ${g.bookingReference}`.toLowerCase().includes(search.toLowerCase()))
   const mutate = async (group: BookingGroup, status: 'CONFIRMED' | 'CANCELLED') => {
     if (busy) return
     setBusy(true); setActionError('')
