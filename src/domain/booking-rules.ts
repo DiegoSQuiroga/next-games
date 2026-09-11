@@ -1,7 +1,7 @@
 import { addMinutes, isAfter, isBefore, isSameMinute, parseISO } from 'date-fns'
 import { buildSessionWindow, timeRangesOverlap } from './session-time'
 import { getGameByType } from './games'
-import type { BookingGroup, BookingStatus, GameType, Reservation, ResourceId } from './types'
+import type { BookingGroup, BookingStatus, GameType, PhysicalResource, Reservation, ResourceId } from './types'
 
 export const ACTIVE_BOOKING_STATUSES: BookingStatus[] = ['PENDING_PAYMENT', 'CONFIRMED']
 export const OCCUPYING_BOOKING_STATUSES: BookingStatus[] = ['PENDING_PAYMENT', 'CONFIRMED']
@@ -41,7 +41,7 @@ export function calculatePaymentDeadline(createdAt: string, sessionStart: string
   const sessionDate = new Date(sessionStart)
   const diffMinutes = (sessionDate.getTime() - createdDate.getTime()) / 60000
 
-  if (diffMinutes >= 45) {
+  if (diffMinutes > 45) {
     return addMinutes(sessionDate, -45).toISOString()
   }
 
@@ -50,6 +50,7 @@ export function calculatePaymentDeadline(createdAt: string, sessionStart: string
 
 export function getAvailableResources(
   gameType: GameType, reservations: Reservation[], date?: string, startTime?: string,
+  resources = getGameByType(gameType).resources as PhysicalResource[],
 ): ResourceId[] {
   const requested = date && startTime ? buildSessionWindow(date, startTime) : null
   const taken = new Set(reservations
@@ -57,7 +58,7 @@ export function getAvailableResources(
     // Rebuild from the operating date for compatibility with older midnight records.
     .filter((r) => requested ? timeRangesOverlap(buildSessionWindow(r.date, r.startTime), requested) : (!date || r.date === date))
     .map((r) => r.resourceId))
-  return getGameByType(gameType).resources.map((r) => r.id).filter((id) => !taken.has(id))
+  return resources.map((r) => r.id).filter((id) => !taken.has(id))
 }
 
 export function findFirstAvailableResource(

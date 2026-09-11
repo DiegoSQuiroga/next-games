@@ -52,9 +52,9 @@ describe('payment deadline logic', () => {
     expect(deadline).toBe('2026-08-29T19:15:00.000Z')
   })
 
-  it('uses exactly 45 minutes before when created exactly 45 minutes before', () => {
+  it('uses created time plus 10 minutes when created exactly 45 minutes before', () => {
     const deadline = calculatePaymentDeadline('2026-08-29T19:15:00.000Z', '2026-08-29T20:00:00.000Z')
-    expect(deadline).toBe('2026-08-29T19:15:00.000Z')
+    expect(deadline).toBe('2026-08-29T19:25:00.000Z')
     expect(isExactFortyFiveMinutesBefore('2026-08-29T19:15:00.000Z', '2026-08-29T20:00:00.000Z')).toBe(true)
   })
 

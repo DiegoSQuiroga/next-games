@@ -1,7 +1,7 @@
 import { addDays, format, isBefore, parseISO } from 'date-fns'
 import { getGameByType } from './games'
 import { calculatePaymentDeadline, canCustomerCreateReservation, findFirstAvailableResource, getAvailableResources, normalizeCustomerName } from './booking-rules'
-import type { BookingGroup, GameType, Reservation } from './types'
+import type { BookingGroup, Game, GameType, Reservation } from './types'
 
 import { buildSessionWindow, OPERATING_SLOT_TIMES } from './session-time'
 export { buildSessionWindow, OPERATING_SLOT_TIMES, OPERATING_START_HOUR, OPERATING_END_HOUR } from './session-time'
@@ -25,16 +25,18 @@ export function getSessionTimeLabels(date: string): string[] {
 
 export function getAvailabilityAtTime(
   gameType: GameType, date: string, time: string, reservations: Reservation[],
+  game: Game = getGameByType(gameType),
 ): SlotAvailability {
-  const capacity = getGameByType(gameType).resources.length
-  const available = getAvailableResources(gameType, reservations, date, time).length
+  const capacity = game.resources.length
+  const available = getAvailableResources(gameType, reservations, date, time, game.resources).length
   return { time, occupied: capacity - available, capacity, available, isFull: available === 0 }
 }
 
 export function getAvailabilityForGame(
   gameType: GameType, date: string, reservations: Reservation[],
+  game: Game = getGameByType(gameType),
 ): SlotAvailability[] {
-  return OPERATING_SLOT_TIMES.map((time) => getAvailabilityAtTime(gameType, date, time, reservations))
+  return OPERATING_SLOT_TIMES.map((time) => getAvailabilityAtTime(gameType, date, time, reservations, game))
 }
 
 export function getNextAvailableSlot(gameType: GameType, date: string, reservations: Reservation[]): string | null {

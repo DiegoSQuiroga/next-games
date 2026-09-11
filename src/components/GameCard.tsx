@@ -8,12 +8,14 @@ function GameCard({
   price,
   count,
   nextSlot,
+  availabilityReady = true,
 }: {
   gameType: GameType
   name: string
   price: number
   count: number
   nextSlot: string | null
+  availabilityReady?: boolean
 }) {
   return (
     <Link to={`/book/${gameType}`} className="game-card" aria-label={`Book ${name}`}>
@@ -29,7 +31,7 @@ function GameCard({
 
         <div className="game-card__meta">
           <span>{count} available</span>
-          <span>{nextSlot ? `Next ${nextSlot}` : 'Full today'}</span>
+          <span>{!availabilityReady ? 'Availability unavailable' : nextSlot ? `Next ${nextSlot}` : 'Full today'}</span>
         </div>
 
         <span className="game-card__cta">Book <span aria-hidden="true">→</span></span>

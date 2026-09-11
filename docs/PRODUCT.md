@@ -131,7 +131,7 @@ Example:
 Session: 20:00
 Payment deadline: 19:15
 
-If the reservation is created within 45 minutes of the session start:
+If the reservation is created exactly 45 minutes before, or within 45 minutes of the session start:
 
 the customer gets 10 minutes from the moment the booking is created to pay.
 

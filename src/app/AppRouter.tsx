@@ -5,6 +5,8 @@ import GameBookingPage from '../pages/GameBookingPage'
 import BookingReviewPage from '../pages/BookingReviewPage'
 import BookingStatusPage from '../pages/BookingStatusPage'
 import AdminPage from '../pages/AdminPage'
+import AdminLoginPage from '../pages/AdminLoginPage'
+import ProtectedAdminRoute from '../components/ProtectedAdminRoute'
 
 function AppLayout() {
   const location = useLocation()
@@ -39,7 +41,10 @@ function AppLayout() {
             <Route path="/book/:game" element={<GameBookingPage />} />
             <Route path="/booking/review" element={<BookingReviewPage />} />
             <Route path="/booking/:reference" element={<BookingStatusPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route element={<ProtectedAdminRoute />}>
+              <Route path="/admin" element={<AdminPage />} />
+            </Route>
           </Routes>
         </div>
     </div>

@@ -7,15 +7,8 @@ export type BookingStatus =
   | 'COMPLETED'
   | 'NO_SHOW'
 
-export type ResourceId =
-  | 'pool-1'
-  | 'pool-2'
-  | 'darts-1'
-  | 'darts-2'
-  | 'darts-3'
-  | 'ping-pong-1'
-  | 'shuffleboard-1'
-  | 'shuffleboard-2'
+// Opaque identifiers: Supabase IDs are not the mock catalog's human-readable IDs.
+export type ResourceId = string
 
 export type PhysicalResource = {
   id: ResourceId
@@ -41,6 +34,7 @@ export type Reservation = {
   bookingGroupId: string
   gameType: GameType
   resourceId: ResourceId | null
+  resourceLabel?: string
   date: string // YYYY-MM-DD
   startTime: string // HH:mm
   status: BookingStatus
