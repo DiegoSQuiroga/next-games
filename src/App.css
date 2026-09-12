@@ -390,3 +390,14 @@ body { background:var(--color-bg); }
   color:var(--color-highlight);
   text-decoration:none;
 }
+
+/* Booking privacy notice and policy modal. */
+.booking-privacy-notice { margin:-10px 0 0; color:#c3c9c0; font-size:.75rem; line-height:1.5; }
+.booking-privacy-link { padding:0; border:0; background:transparent; color:inherit; font:inherit; text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+.booking-privacy-dialog { width:min(480px,calc(100% - 28px)); max-height:calc(100dvh - 32px); overflow-y:auto; overscroll-behavior:contain; }
+.booking-privacy-dialog::backdrop { background:#000b; }
+.booking-privacy-dialog h2 { margin:0 0 14px; font-size:1.4rem; }
+.booking-privacy-dialog h3 { margin:16px 0 4px; font-size:.85rem; }
+.booking-privacy-dialog p { margin:0 0 12px; color:#c3c9c0; font-size:.85rem; line-height:1.5; }
+.app-wrapper--customer .booking-privacy-dialog :focus-visible,
+.app-wrapper--customer .booking-privacy-link:focus-visible { outline-color:var(--color-accent); }
