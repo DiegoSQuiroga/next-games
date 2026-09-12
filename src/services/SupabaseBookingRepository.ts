@@ -43,7 +43,7 @@ export class SupabaseBookingRepository implements BookingRepository {
   }
 
   async createGroup(input: BookingInput): Promise<BookingGroup> {
-    const payload = bookingPayload(input)
+    bookingPayload(input)
     // Advisory frontend preflight; the RPC repeats allocation under a database transaction lock.
     for (const date of new Set(input.reservationInputs.map(s => s.date))) {
       const availability = await this.getAvailability(date)
@@ -57,7 +57,7 @@ export class SupabaseBookingRepository implements BookingRepository {
           gameType: session.gameType, resourceId: resource, date, startTime: session.time, status: 'PENDING_PAYMENT' })
       }
     }
-    return mapBookingGroup(await this.call<BookingGroupRow>('create_booking_group', payload))
+    return mapBookingGroup(await this.call<BookingGroupRow>('create_booking_group', bookingPayload(input)))
   }
   async saveAdminGroup(input: BookingInput, id: string | null, status: 'PENDING_PAYMENT' | 'CONFIRMED'): Promise<BookingGroup> {
     return mapBookingGroup(await this.call<BookingGroupRow>('admin_save_booking_group', {

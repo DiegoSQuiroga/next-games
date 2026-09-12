@@ -23,7 +23,7 @@ describe('customer slots and operating nights', () => {
       expect(new Date(window.sessionStart).getDate()).toBe(time.startsWith('23') ? 10 : 11)
       expect(+new Date(window.sessionEnd) - +new Date(window.sessionStart)).toBe(3600000)
     }
-    expect(getOperatingDate(new Date('2026-09-11T00:45:00'))).toBe(date)
+    expect(getOperatingDate(new Date('2026-09-11T00:45:00+02:00'))).toBe(date)
   })
   it.each(['01:01', '01:30', '02:00', '09:59', '24:00', '17:60', '17:10:30', ''])('rejects invalid admin start %s', (time) => {
     expect(() => admin(time)).toThrow()

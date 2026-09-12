@@ -130,3 +130,36 @@ describe('recent references only', () => {
     expect(readBookingDraft()?.times).toEqual(['18:30'])
   })
 })
+
+
+describe('expired customer selections', () => {
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
+  it('rejects stale drafts while preserving admin past-time editing', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2099-09-10T22:30:00Z'))
+    expect(() => bookingPayload(input)).toThrow(/start time has passed/)
+    expect(bookingPayload(input, true).p_sessions).toEqual(input.reservationInputs)
+  })
+  it('rejects an expired selection before any availability request or write', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2099-09-10T22:30:00Z'))
+    const call = vi.fn()
+    const repo = new SupabaseBookingRepository(call)
+    const availability = vi.spyOn(repo, 'getAvailability')
+    await expect(repo.createGroup(input)).rejects.toThrow(/start time has passed/)
+    expect(availability).not.toHaveBeenCalled()
+    expect(call).not.toHaveBeenCalled()
+  })
+  it('rechecks the clock after an asynchronous resource preflight', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2099-09-10T22:29:59Z'))
+    const call = vi.fn()
+    const repo = new SupabaseBookingRepository(call)
+    vi.spyOn(repo, 'getAvailability').mockImplementation(async () => {
+      vi.setSystemTime(new Date('2099-09-10T22:30:00Z'))
+      return { games: [{ type: 'ping-pong', name: 'Ping Pong', price: 60, resources: [{ id: '6', gameType: 'ping-pong', label: 'Ping Pong 1' }] }], reservations: [] }
+    })
+    await expect(repo.createGroup(input)).rejects.toThrow(/start time has passed/)
+    expect(call).not.toHaveBeenCalled()
+  })
+})

@@ -1,6 +1,6 @@
 import type { BookingGroup, BookingStatus, GameType, Reservation } from '../domain/types'
 import type { BookingInput } from './bookingRepository'
-import { buildSessionWindow, OPERATING_SLOT_TIMES } from '../domain/session-time'
+import { buildSessionWindow, isFutureCustomerSlot, OPERATING_SLOT_TIMES } from '../domain/session-time'
 import { GAME_TYPES } from '../domain/games'
 
 export const gameTypeByName: Record<string, GameType> = {
@@ -74,6 +74,7 @@ export function bookingPayload(input: BookingInput, admin = false) {
     if (!GAME_TYPES.includes(gameType)) throw new Error('Game is not available.')
     buildSessionWindow(date, time)
     if (!admin && !OPERATING_SLOT_TIMES.includes(time)) throw new Error('Choose a customer start time in 30-minute increments.')
+    if (!admin && !isFutureCustomerSlot(date, time)) throw new Error('A selected start time has passed. Choose another time.')
     return { gameType, date, time }
   })
   // Never send client prices, resource assignments, creation times or payment deadlines.

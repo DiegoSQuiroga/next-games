@@ -18,8 +18,35 @@ export const OPERATING_SLOT_TIMES = Array.from(
   },
 )
 
+const venueClockFormat = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Copenhagen', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+})
+
+function venueClock(now: Date) {
+  const parts = venueClockFormat.formatToParts(now)
+  const part = (type: string) => parts.find(p => p.type === type)!.value
+  return { date: part('year') + '-' + part('month') + '-' + part('day'), time: part('hour') + ':' + part('minute') }
+}
+
+function shiftCalendarDate(date: string, days: number): string {
+  const day = new Date(date + 'T12:00:00Z')
+  day.setUTCDate(day.getUTCDate() + days)
+  return day.toISOString().slice(0, 10)
+}
+
 export function getOperatingDate(now = new Date()): string {
-  return format(now.getHours() < OPERATING_END_HOUR ? addDays(now, -1) : now, 'yyyy-MM-dd')
+  const clock = venueClock(now)
+  return clock.time < '02:00' ? shiftCalendarDate(clock.date, -1) : clock.date
+}
+
+// Customer starts are minute-aligned and never fall in Copenhagen's DST transition
+// hour (02:00 to 03:00), so comparing venue calendar labels also works across DST.
+export function isFutureCustomerSlot(date: string, time: string, now = new Date()): boolean {
+  if (!OPERATING_SLOT_TIMES.includes(time)) return false
+  const clock = venueClock(now)
+  const calendarDate = time < '10:00' ? shiftCalendarDate(date, 1) : date
+  return calendarDate + 'T' + time > clock.date + 'T' + clock.time
 }
 
 // The date identifies the operating night; times after midnight belong to the next calendar day.

@@ -3,7 +3,7 @@ import { getGameByType } from './games'
 import { calculatePaymentDeadline, canCustomerCreateReservation, findFirstAvailableResource, getAvailableResources, normalizeCustomerName } from './booking-rules'
 import type { BookingGroup, Game, GameType, Reservation } from './types'
 
-import { buildSessionWindow, OPERATING_SLOT_TIMES } from './session-time'
+import { buildSessionWindow, isFutureCustomerSlot, OPERATING_SLOT_TIMES } from './session-time'
 export { buildSessionWindow, OPERATING_SLOT_TIMES, OPERATING_START_HOUR, OPERATING_END_HOUR } from './session-time'
 
 export type SlotAvailability = {
@@ -37,6 +37,14 @@ export function getAvailabilityForGame(
   game: Game = getGameByType(gameType),
 ): SlotAvailability[] {
   return OPERATING_SLOT_TIMES.map((time) => getAvailabilityAtTime(gameType, date, time, reservations, game))
+}
+
+export function getCustomerAvailabilityForGame(
+  gameType: GameType, date: string, reservations: Reservation[],
+  game: Game = getGameByType(gameType), now = new Date(),
+): SlotAvailability[] {
+  return getAvailabilityForGame(gameType, date, reservations, game)
+    .filter(slot => isFutureCustomerSlot(date, slot.time, now))
 }
 
 export function getNextAvailableSlot(gameType: GameType, date: string, reservations: Reservation[]): string | null {
