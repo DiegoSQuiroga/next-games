@@ -31,7 +31,7 @@ function GameCard({
 
         <div className="game-card__meta">
           <span>{count} available</span>
-          <span>{!availabilityReady ? 'Availability unavailable' : nextSlot ? `Next ${nextSlot}` : 'Full today'}</span>
+          <span className="game-card__availability" data-available={availabilityReady && !!nextSlot}>{!availabilityReady ? 'Availability unavailable' : nextSlot ? `Next ${nextSlot}` : 'Full today'}</span>
         </div>
 
         <span className="game-card__cta">Book <span aria-hidden="true">→</span></span>
